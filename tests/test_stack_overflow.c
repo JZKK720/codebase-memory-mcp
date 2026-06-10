@@ -390,6 +390,117 @@ TEST(cpp_large_templated_header_no_crash_issue424) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+ * LSP resolve recursion guards (perf-sweep crashes, 2026-06-10)
+ *
+ * Indexing real OSS crashed in the LSP RESOLVE walks (distinct from the
+ * extraction-walk caps above): elasticsearch → SIGSEGV under deep recursive
+ * java_resolve_calls_in_node frames (bind_lambda_args), bitcoin → SIGSEGV
+ * under deep c_resolve_calls_in_node frames (cbm_type_substitute via
+ * c_adl_resolve), microsoft/TypeScript → SIGBUS under an unbounded
+ * lookup_member_type cycle. The walks now carry depth guards; these
+ * reproductions fork a child so a regression cannot kill the test runner
+ * (the TS cyclic-type shape is only reachable with a real cross-file
+ * registry, so that one is verified at the real-repo tier; the synthetic
+ * cyclic fixture here guards the in-file path).
+ * ═══════════════════════════════════════════════════════════════════ */
+
+#if !defined(_WIN32)
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
+/* Run cbm_extract_file in a forked child; true if the child died by signal.
+ * Mirrors tests/test_lang_contract.c. On Windows run in-process (a genuine
+ * crash there aborts the runner — hard, visible failure). */
+static bool so_extract_crashes(const char *content, CBMLanguage lang, const char *relpath) {
+#if defined(_WIN32)
+    CBMFileResult *r =
+        cbm_extract_file(content, (int)strlen(content), lang, "so", relpath, 0, NULL, NULL);
+    if (r) {
+        cbm_free_result(r);
+    }
+    return false;
+#else
+    fflush(NULL);
+    pid_t pid = fork();
+    if (pid < 0) {
+        return false;
+    }
+    if (pid == 0) {
+        CBMFileResult *r =
+            cbm_extract_file(content, (int)strlen(content), lang, "so", relpath, 0, NULL, NULL);
+        if (r) {
+            cbm_free_result(r);
+        }
+        _exit(0);
+    }
+    int status = 0;
+    (void)waitpid(pid, &status, 0);
+    return WIFSIGNALED(status);
+#endif
+}
+
+TEST(lsp_java_deep_nesting_no_crash) {
+    /* Deeply nested call expressions — the same shape as the elasticsearch
+     * crash (fast SIGSEGV under recursive java_resolve_calls_in_node frames;
+     * pre-guard prod probe: rc=139 in under a second at this depth). Nested
+     * BLOCKS are deliberately not used: java block processing is minutes-slow
+     * at depth >=3000 (separate adversarial-input pathology, documented in
+     * the perf-sweep report). */
+    const int DEPTH = 30000;
+    size_t sz = (size_t)DEPTH * 3 + 256;
+    char *src = malloc(sz);
+    ASSERT_NOT_NULL(src);
+    char *p = src;
+    p += snprintf(p, sz, "class X { static int f(int a) { return a; } static int g() { return ");
+    for (int i = 0; i < DEPTH; i++) {
+        *p++ = 'f';
+        *p++ = '(';
+    }
+    *p++ = '1';
+    memset(p, ')', DEPTH);
+    p += DEPTH;
+    snprintf(p, sz - (size_t)(p - src), "; } }\n");
+    ASSERT_FALSE(so_extract_crashes(src, CBM_LANG_JAVA, "X.java"));
+    free(src);
+    PASS();
+}
+
+TEST(lsp_cpp_deep_expression_no_crash) {
+    /* See lsp_java_deep_nesting_no_crash on the depth choice. */
+    const int DEPTH = 30000;
+    size_t sz = (size_t)DEPTH * 3 + 256;
+    char *src = malloc(sz);
+    ASSERT_NOT_NULL(src);
+    char *p = src;
+    p += snprintf(p, sz, "int f(int x) { return x; }\nint g() { return ");
+    for (int i = 0; i < DEPTH; i++) {
+        *p++ = 'f';
+        *p++ = '(';
+    }
+    *p++ = '1';
+    memset(p, ')', DEPTH);
+    p += DEPTH;
+    snprintf(p, sz - (size_t)(p - src), "; }\n");
+    ASSERT_FALSE(so_extract_crashes(src, CBM_LANG_CPP, "deep.cpp"));
+    free(src);
+    PASS();
+}
+
+TEST(lsp_ts_cyclic_types_no_crash) {
+    const char *src = "type A = B | null;\n"
+                      "type B = A | number;\n"
+                      "interface C extends D { c: number; }\n"
+                      "interface D extends C { d: number; }\n"
+                      "declare const a: A;\n"
+                      "declare const c: C;\n"
+                      "function useIt(p: C) { return p.missing_member; }\n"
+                      "const y = c.also_missing;\n";
+    ASSERT_FALSE(so_extract_crashes(src, CBM_LANG_TYPESCRIPT, "cycle.ts"));
+    PASS();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
  * Suite registration
  * ═══════════════════════════════════════════════════════════════════ */
 
@@ -398,6 +509,9 @@ SUITE(stack_overflow) {
 
     RUN_TEST(ts_allocator_bound_to_mimalloc_issue424);
     RUN_TEST(cpp_large_templated_header_no_crash_issue424);
+    RUN_TEST(lsp_java_deep_nesting_no_crash);
+    RUN_TEST(lsp_cpp_deep_expression_no_crash);
+    RUN_TEST(lsp_ts_cyclic_types_no_crash);
 
     RUN_TEST(js_calls_exceed_512);
     RUN_TEST(python_calls_exceed_512);

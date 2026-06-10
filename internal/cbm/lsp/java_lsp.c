@@ -42,6 +42,7 @@
 
 #define JAVA_LSP_MAX_EVAL_DEPTH 32
 #define JAVA_LSP_MAX_STMT_DEPTH 256
+#define JAVA_LSP_MAX_WALK_DEPTH 512
 #define JAVA_LSP_MAX_INHERIT_HOPS 32
 #define JAVA_LSP_MAX_OVERLOADS 64
 #define JAVA_LSP_BUF 1024
@@ -2678,7 +2679,23 @@ static const CBMRegisteredFunc *lookup_method_for_call(JavaLSPContext *ctx, TSNo
 /* Walk every node beneath `node`, calling resolve_method_call on each
  * method_invocation / object_creation_expression and recursing into block
  * children with proper scope handling. */
+static void java_resolve_calls_in_node_inner(JavaLSPContext *ctx, TSNode node);
+
+/* Depth-guarded entry: the AST walk recurses per nesting level and crashed
+ * with a stack overflow on pathologically nested real-world sources
+ * (elasticsearch, SIGSEGV in bind_lambda_args under hundreds of recursive
+ * java_resolve_calls_in_node frames). Past the cap the subtree is skipped —
+ * its calls stay unresolved, which is graceful degradation, not a crash. */
 static void java_resolve_calls_in_node(JavaLSPContext *ctx, TSNode node) {
+    if (ctx->walk_depth >= JAVA_LSP_MAX_WALK_DEPTH) {
+        return;
+    }
+    ctx->walk_depth++;
+    java_resolve_calls_in_node_inner(ctx, node);
+    ctx->walk_depth--;
+}
+
+static void java_resolve_calls_in_node_inner(JavaLSPContext *ctx, TSNode node) {
     if (ts_node_is_null(node))
         return;
     const char *kind = ts_node_type(node);
