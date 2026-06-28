@@ -1,7 +1,7 @@
 # Maintainers
 
-This document separates advisory review responsibility from binding merge
-authority.
+This document defines how maintainer responsibility, review routing, and
+operational authority work in this project.
 
 codebase-memory-mcp is currently a user-owned repository. Because GitHub teams
 are not available here, all delegated ownership is expressed with individual
@@ -9,12 +9,12 @@ GitHub handles.
 
 ## Authority Model
 
-| Role | Scope | Authority |
+| Role | Scope | Authority in this project |
 | --- | --- | --- |
 | Project owner | Entire repository | Final roadmap, security, release, workflow, and merge authority. |
-| Release operator | Dry-run and release preparation | May prepare release notes, run checklists, and request dry runs when explicitly delegated. May not publish without owner approval. |
-| Area reviewer | One technical area | May review, test, reproduce, and recommend merge for that area. Approval is advisory until the project owner approves. |
-| Triage collaborator | Issues and discussions | May label, deduplicate, reproduce, and request information. No merge or release authority. |
+| Release operator | Dry-run and release preparation | Prepares release notes, runs checklists, and operates delegated dry runs. Release publication remains owner-gated. |
+| Area reviewer | One technical area | Reviews, tests, reproduces, and recommends merge for that area. Approval is advisory until the project owner approves. |
+| Triage collaborator | Issues and discussions | Labels, deduplicates, reproduces, and requests information. This role has no merge or release authority. |
 
 The binding rule is intentionally simple: all pull requests require
 `@DeusData` approval before merge. `MAINTAINERS.md` routes review; it does not
@@ -28,8 +28,8 @@ override `.github/CODEOWNERS`.
 
 ## Area Review Map
 
-Use this map to request informed review. Entries marked `TBD` are open slots
-for future co-maintainers.
+Review requests follow this map. Entries marked `TBD` are currently unassigned
+review areas for future co-maintainers.
 
 | Area | Paths | Advisory reviewers | Owner gate |
 | --- | --- | --- | --- |
@@ -50,25 +50,29 @@ for future co-maintainers.
 
 Operational authority is stricter than code review authority.
 
-| Operation | Current authority | Delegation rule |
+| Operation | Current authority | Project rule |
 | --- | --- | --- |
 | PR validation (`pr.yml`, DCO, CodeQL) | Automatic | Anyone may trigger it by opening or updating a PR. Required checks must pass. |
-| Dry run (`dry-run.yml`) | `@DeusData` | May be delegated to release operators after trust is established. Dry-run delegation does not imply release authority. |
-| Smoke/soak/repro manual runs | `@DeusData` | May be delegated to area reviewers for diagnosis, but results are advisory. |
+| Dry run (`dry-run.yml`) | `@DeusData` | Delegated release operators may run dry runs after promotion. Dry-run delegation does not imply release authority. |
+| Smoke/soak/repro manual runs | `@DeusData` | Area reviewers may operate these runs when delegated for diagnosis. Results are advisory. |
 | Release workflow (`release.yml`) | `@DeusData` only | Owner-only until a release operator is explicitly promoted. Publishing, replacing releases, and tag movement remain owner-gated. |
 | Package registry publishing | `@DeusData` only | Owner-only initially because registry credentials and public packages are irreversible operational surfaces. |
 | Security advisory handling | `@DeusData` only | Do not delegate across advisories. Keep private reports isolated. |
 | Workflow, ruleset, CODEOWNERS, and branch protection changes | `@DeusData` only | Owner-only because these define authority itself. |
 
-Before granting a collaborator `Write` access, verify that they should be able
-to run manual GitHub Actions workflows in this user-owned repository. Prefer
-`Triage` for issue-only delegation. If `Write` becomes necessary, use protected
-branches, required code-owner review, and protected release environments where
-available so release jobs still require `@DeusData` approval.
+Repository access follows the same authority model:
+
+- `Triage` is the default collaborator role for issue-only delegation.
+- `Write` access is reserved for collaborators whose operational access has
+  been approved by `@DeusData`.
+- Release authority is separate from code review authority.
+- Protected branches, required code-owner review, required status checks, and
+  protected release environments are part of the project control model where
+  GitHub supports them.
 
 ## Promotion Path
 
-Promotion is gradual and reversible.
+Promotion is gradual, explicit, and reversible.
 
 | Stage | Requirements | Capabilities |
 | --- | --- | --- |
@@ -77,6 +81,9 @@ Promotion is gradual and reversible.
 | Area reviewer | Sustained, technically accurate reviews in one area. | Advisory review listing in this file. |
 | Release operator | Proven reliability on dry runs, packaging, and release checklists. | May run delegated dry runs and prepare releases. |
 | Full maintainer | Long-term trust across code, security, release, and governance. | Only after explicit owner decision and updated policy. |
+
+Maintainer promotions are recorded in this file. Binding authority changes are
+recorded in `.github/CODEOWNERS` and repository settings.
 
 ## High-Risk Change Rules
 

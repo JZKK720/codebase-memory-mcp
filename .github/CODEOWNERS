@@ -3,12 +3,12 @@
 # This repository is user-owned, so ownership is expressed with individual
 # GitHub handles rather than organization teams.
 #
-# IMPORTANT: CODEOWNERS is a merge gate, not a reviewer directory. Do not add
-# delegated reviewers here unless they are allowed to satisfy the binding
-# code-owner approval requirement. Add advisory area reviewers to
-# MAINTAINERS.md first.
+# CODEOWNERS is the binding merge gate, not the reviewer directory.
+# Advisory area reviewers are recorded in MAINTAINERS.md. A handle appears in
+# this file only when that person is authorized to satisfy binding code-owner
+# approval for the matching path.
 
-# Default owner gate: every pull request must cross the project owner's desk.
+# Default owner gate: every pull request crosses the project owner's desk.
 * @DeusData
 
 # Security-sensitive and authority-sensitive surfaces.
