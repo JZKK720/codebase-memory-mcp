@@ -1,0 +1,101 @@
+# Build and push Docker images to GHCR (GitHub Container Registry).
+#
+# Produces two image variants:
+#   :latest      — MCP server only (~25MB)
+#   :latest-ui   — MCP server + 3D graph visualization UI (~40MB)
+#
+# Both are multi-arch (linux/amd64 + linux/arm64).
+#
+# Triggers:
+#   - On release published (version-tagged images)
+#   - On push to main (rolling :latest)
+#   - Manual dispatch
+
+name: Docker
+
+on:
+  release:
+    types: [published]
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'compose.yaml'
+      - '.github/workflows/docker.yml'
+      - 'Makefile.cbm'
+      - 'scripts/build.sh'
+      - 'scripts/env.sh'
+      - 'src/**'
+      - 'internal/cbm/**'
+      - 'vendored/**'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v0.8.1). Leave empty for :latest only.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/codebase-memory-mcp
+
+jobs:
+  build:
+    name: Build & push ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: standard
+            with_ui: "false"
+            tag_suffix: ""
+          - variant: ui
+            with_ui: "true"
+            tag_suffix: "-ui"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate tags
+        id: tags
+        run: |
+          TAGS="${{ env.IMAGE_NAME }}:latest${{ matrix.tag_suffix }}"
+          TAGS="${TAGS},${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}"
+          if [ -n "${{ inputs.version }}" ]; then
+            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${{ inputs.version }}${{ matrix.tag_suffix }}"
+          fi
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}${{ matrix.tag_suffix }}"
+          fi
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          build-args: |
+            WITH_UI=${{ matrix.with_ui }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

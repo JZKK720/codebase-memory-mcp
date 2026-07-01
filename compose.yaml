@@ -1,0 +1,46 @@
+# codebase-memory-mcp — Docker Compose for local runtime
+#
+# Usage:
+#   docker compose up -d                          # standard MCP server
+#   docker compose --profile ui up -d             # with 3D graph visualization (port 9749)
+#
+# The MCP server communicates over stdio (JSON-RPC 2.0).
+# stdin_open + tty enable interactive stdio communication.
+
+services:
+  # ── Standard MCP server (no UI) ──────────────────────────────
+  codebase-memory-mcp:
+    image: ghcr.io/jzkk720/codebase-memory-mcp:latest
+    stdin_open: true
+    tty: true
+    volumes:
+      - cbm-data:/data
+    environment:
+      - CBM_CACHE_DIR=/data
+      # - CBM_WORKERS=4
+      # - CBM_LOG_LEVEL=info
+      # - CBM_SEMANTIC_ENABLED=true
+      # - CBM_SEMANTIC_THRESHOLD=0.75
+    restart: unless-stopped
+
+  # ── MCP server with 3D graph visualization UI ────────────────
+  # Start with: docker compose --profile ui up -d
+  codebase-memory-mcp-ui:
+    image: ghcr.io/jzkk720/codebase-memory-mcp:latest-ui
+    profiles:
+      - ui
+    stdin_open: true
+    tty: true
+    ports:
+      - "9749:9749"
+    volumes:
+      - cbm-data:/data
+    environment:
+      - CBM_CACHE_DIR=/data
+      # - CBM_WORKERS=4
+      # - CBM_LOG_LEVEL=info
+    restart: unless-stopped
+
+volumes:
+  cbm-data:
+    driver: local
