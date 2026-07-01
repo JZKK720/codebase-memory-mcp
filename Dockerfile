@@ -19,13 +19,16 @@ ARG ALPINE_VERSION=3.21
 FROM alpine:${ALPINE_VERSION} AS builder
 
 # Build dependencies
+# Note: libgit2-dev is NOT installed — Alpine 3.21's libgit2 is older than
+# the version this code expects (git_allocator API). The build auto-detects
+# libgit2 via pkg-config; without it, the code falls back to popen("git log")
+# for git history parsing. This is the same behavior as the pre-built release
+# binaries, which also don't link libgit2.
 RUN apk add --no-cache \
     build-base \
     linux-headers \
     zlib-dev \
     zlib-static \
-    libgit2-dev \
-    pkgconf \
     bash \
     git \
     ca-certificates
