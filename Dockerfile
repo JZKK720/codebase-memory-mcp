@@ -25,7 +25,7 @@ RUN apk add --no-cache \
     zlib-dev \
     zlib-static \
     libgit2-dev \
-    pkg-config \
+    pkgconf \
     bash \
     git \
     ca-certificates
