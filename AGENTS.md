@@ -269,32 +269,26 @@ codebase-memory-mcp update        # check for updates
 ## Docker Runtime
 
 Run the MCP server in a container — no C toolchain needed on the host.
+One image includes everything: MCP server + 3D graph visualization UI.
 
 ### Quick start
 
 ```bash
-# Pull and run (standard variant)
-docker compose up -d
-
-# With 3D graph visualization UI (port 9749)
-docker compose --profile ui up -d
+docker compose up -d          # starts MCP server + graph UI
+# Open http://localhost:9749  # 3D graph visualization
 ```
 
 ### Pull from GHCR (for other machines)
 
 ```bash
-# Standard image (~25MB)
 docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest
-
-# With graph UI (~40MB)
-docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest-ui
 ```
 
 ### Configuration
 
-- **Persistent data**: Volume `cbm-data` mounted at `/data` (`CBM_CACHE_DIR=/data`)
+- **Persistent data**: Volume `cbm-data` mounted at `/data` (`CBM_CACHE_DIR=/data`). SQLite is embedded in the binary — no external database needed.
 - **MCP stdio**: `stdin_open: true` + `tty: true` in compose for JSON-RPC over stdin/stdout
-- **UI port**: 9749 exposed only when using the `:latest-ui` image
+- **UI port**: 9749, served on `127.0.0.1` inside the container. `network_mode: host` in compose makes it reachable from the host browser.
 - **Environment**: Set `CBM_WORKERS`, `CBM_LOG_LEVEL`, etc. in `compose.yaml`
 
 ### Configure MCP clients for containerized server
@@ -314,11 +308,7 @@ docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest-ui
 ### Building locally
 
 ```bash
-# Standard image
 docker build -t cbm .
-
-# With UI
-docker build --build-arg WITH_UI=true -t cbm-ui .
 ```
 
 ## Iterative Refinement (Chronicle)

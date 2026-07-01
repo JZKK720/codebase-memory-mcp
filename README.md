@@ -312,30 +312,23 @@ You: "Install this MCP server: https://github.com/DeusData/codebase-memory-mcp"
 ### Docker
 
 Run the MCP server in a container — no C toolchain needed on the host.
+One image includes everything: MCP server + 3D graph visualization UI.
+SQLite is embedded in the binary — no external database needed.
 
 **Quick start** (Docker Desktop / WSL2):
 
 ```bash
-# Clone and run
 git clone https://github.com/DeusData/codebase-memory-mcp.git
 cd codebase-memory-mcp
 docker compose up -d
 ```
 
-**With 3D graph visualization** (port 9749):
-
-```bash
-docker compose --profile ui up -d
-```
+Open `http://localhost:9749` for the 3D graph visualization.
 
 **Pull from GHCR** (for other machines):
 
 ```bash
-# Standard image (~25MB)
 docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest
-
-# With graph UI (~40MB)
-docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest-ui
 ```
 
 **Configure MCP clients for containerized server**:
@@ -355,8 +348,7 @@ docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest-ui
 **Build locally**:
 
 ```bash
-docker build -t cbm .                                    # standard
-docker build --build-arg WITH_UI=true -t cbm-ui .        # with graph UI
+docker build -t cbm .
 ```
 
 Persistent graph data is stored in the `cbm-data` Docker volume (`/data` inside the container).

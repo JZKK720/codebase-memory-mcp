@@ -1,10 +1,10 @@
-# Build and push Docker images to GHCR (GitHub Container Registry).
+# Build and push Docker image to GHCR (GitHub Container Registry).
 #
-# Produces two image variants:
-#   :latest      — MCP server only (~25MB)
-#   :latest-ui   — MCP server + 3D graph visualization UI (~40MB)
+# One image — includes the MCP server + 3D graph visualization UI.
+# The UI is served on port 9749 when the binary runs with --ui=true.
+# Without that flag, it behaves as a standard MCP stdio server.
 #
-# Both are multi-arch (linux/amd64 + linux/arm64).
+# Multi-arch: linux/amd64 + linux/arm64.
 #
 # Triggers:
 #   - On release published (version-tagged images)
@@ -41,18 +41,8 @@ permissions:
 
 jobs:
   build:
-    name: Build & push ${{ matrix.variant }}
+    name: Build & push
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - variant: standard
-            with_ui: "false"
-            tag_suffix: ""
-          - variant: ui
-            with_ui: "true"
-            tag_suffix: "-ui"
 
     steps:
       - name: Checkout
@@ -82,13 +72,13 @@ jobs:
         env:
           IMAGE: ${{ steps.image.outputs.name }}
         run: |
-          TAGS="${IMAGE}:latest${{ matrix.tag_suffix }}"
+          TAGS="${IMAGE}:latest"
           TAGS="${TAGS},${IMAGE}:sha-${GITHUB_SHA::7}"
           if [ -n "${{ inputs.version }}" ]; then
-            TAGS="${TAGS},${IMAGE}:${{ inputs.version }}${{ matrix.tag_suffix }}"
+            TAGS="${TAGS},${IMAGE}:${{ inputs.version }}"
           fi
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="${TAGS},${IMAGE}:${{ github.event.release.tag_name }}${{ matrix.tag_suffix }}"
+            TAGS="${TAGS},${IMAGE}:${{ github.event.release.tag_name }}"
           fi
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
@@ -101,6 +91,6 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
-            WITH_UI=${{ matrix.with_ui }}
+            WITH_UI=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
