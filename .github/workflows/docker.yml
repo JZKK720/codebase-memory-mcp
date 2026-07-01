@@ -39,9 +39,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/codebase-memory-mcp
-
 jobs:
   build:
     name: Build & push ${{ matrix.variant }}
@@ -61,6 +58,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
+      - name: Set image name (lowercase owner)
+        id: image
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=ghcr.io/${OWNER}/codebase-memory-mcp" >> $GITHUB_OUTPUT
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -76,14 +79,16 @@ jobs:
 
       - name: Generate tags
         id: tags
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
         run: |
-          TAGS="${{ env.IMAGE_NAME }}:latest${{ matrix.tag_suffix }}"
-          TAGS="${TAGS},${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::7}"
+          TAGS="${IMAGE}:latest${{ matrix.tag_suffix }}"
+          TAGS="${TAGS},${IMAGE}:sha-${GITHUB_SHA::7}"
           if [ -n "${{ inputs.version }}" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${{ inputs.version }}${{ matrix.tag_suffix }}"
+            TAGS="${TAGS},${IMAGE}:${{ inputs.version }}${{ matrix.tag_suffix }}"
           fi
           if [ "${{ github.event_name }}" = "release" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}${{ matrix.tag_suffix }}"
+            TAGS="${TAGS},${IMAGE}:${{ github.event.release.tag_name }}${{ matrix.tag_suffix }}"
           fi
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
 
