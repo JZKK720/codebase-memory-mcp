@@ -266,51 +266,6 @@ codebase-memory-mcp update        # check for updates
 
 **Infrastructure languages** (Dockerfile, K8s, Kustomize) don't need a tree-sitter grammar — they follow the infra-pass pattern using the existing YAML grammar. See `pass_infrascan.c` and `extract_k8s.c`.
 
-## Docker Runtime
-
-Run the MCP server in a container — no C toolchain needed on the host.
-One image includes everything: MCP server + 3D graph visualization UI.
-
-### Quick start
-
-```bash
-docker compose up -d          # starts MCP server + graph UI
-# Open http://localhost:9749  # 3D graph visualization
-```
-
-### Pull from GHCR (for other machines)
-
-```bash
-docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest
-```
-
-### Configuration
-
-- **Persistent data**: Volume `cbm-data` mounted at `/data` (`CBM_CACHE_DIR=/data`). SQLite is embedded in the binary — no external database needed.
-- **MCP stdio**: `stdin_open: true` + `tty: true` in compose for JSON-RPC over stdin/stdout
-- **UI port**: 9749, served on `127.0.0.1` inside the container. `network_mode: host` in compose makes it reachable from the host browser.
-- **Environment**: Set `CBM_WORKERS`, `CBM_LOG_LEVEL`, etc. in `compose.yaml`
-
-### Configure MCP clients for containerized server
-
-```json
-{
-  "mcpServers": {
-    "codebase-memory-mcp": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "-v", "cbm-data:/data",
-               "ghcr.io/jzkk720/codebase-memory-mcp:latest"]
-    }
-  }
-}
-```
-
-### Building locally
-
-```bash
-docker build -t cbm .
-```
-
 ## Iterative Refinement (Chronicle)
 
 After significant work sessions, use `/chronicle improve` to iteratively refine these instructions:

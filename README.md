@@ -309,50 +309,6 @@ The `codebase-memory-mcp-bin` package is available at: https://aur.archlinux.org
 You: "Install this MCP server: https://github.com/DeusData/codebase-memory-mcp"
 ```
 
-### Docker
-
-Run the MCP server in a container — no C toolchain needed on the host.
-One image includes everything: MCP server + 3D graph visualization UI.
-SQLite is embedded in the binary — no external database needed.
-
-**Quick start** (Docker Desktop / WSL2):
-
-```bash
-git clone https://github.com/DeusData/codebase-memory-mcp.git
-cd codebase-memory-mcp
-docker compose up -d
-```
-
-Open `http://localhost:9749` for the 3D graph visualization.
-
-**Pull from GHCR** (for other machines):
-
-```bash
-docker pull ghcr.io/jzkk720/codebase-memory-mcp:latest
-```
-
-**Configure MCP clients for containerized server**:
-
-```json
-{
-  "mcpServers": {
-    "codebase-memory-mcp": {
-      "command": "docker",
-      "args": ["run", "--rm", "-i", "-v", "cbm-data:/data",
-               "ghcr.io/jzkk720/codebase-memory-mcp:latest"]
-    }
-  }
-}
-```
-
-**Build locally**:
-
-```bash
-docker build -t cbm .
-```
-
-Persistent graph data is stored in the `cbm-data` Docker volume (`/data` inside the container).
-
 ### Build from Source
 
 <details>
