@@ -293,7 +293,9 @@ The MCP server requires a `project` parameter in tool calls (e.g., `search_graph
 
 **Known limitation**: VS Code and Claude Code spawn the MCP server without setting the working directory to the workspace folder. The server's session detection (`getcwd()`) therefore resolves to the wrong path, and `auto_index` may not trigger correctly.
 
-**Workarounds**:
+**Fix applied**: A wrapper script (`cbm-launcher.cmd`) sets CWD from `VSCODE_WORKSPACE_FOLDER` or `CLAUDE_PROJECT_DIR` env vars before launching the binary. Both VS Code and Claude Code MCP configs point to this wrapper instead of the binary directly.
+
+**If the wrapper doesn't detect the workspace** (env var not set), pass the project name explicitly:
 1. **Pass the project name explicitly** in tool calls: `"project": "C-Users-cubecloud-io-github-pr-agent-meow"`
 2. **Use `repo_path` for indexing**: `index_repository({"repo_path": "C:/Users/cubecloud-io/github-pr/agent-meow"})` — this works regardless of CWD
 3. **Index from CLI first**: `codebase-memory-mcp cli index_repository '{"repo_path": "C:/path/to/repo"}'` — then the project is available for queries
