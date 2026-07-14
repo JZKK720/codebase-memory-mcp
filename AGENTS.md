@@ -284,3 +284,21 @@ No session history exists yet for this repo — this is forward-looking guidance
 - [SECURITY.md](SECURITY.md) — security policy, runtime network behavior, SLSA/Sigstore
 - [docs/BENCHMARK.md](docs/BENCHMARK.md) — performance benchmarks across 63 languages
 - [docs/EVALUATION_PLAN.md](docs/EVALUATION_PLAN.md) — evaluation methodology for 159 languages
+
+## Runtime Usage (MCP clients)
+
+### Project resolution
+
+The MCP server requires a `project` parameter in tool calls (e.g., `search_graph`, `query_graph`, `trace_path`). The project name is derived from the repo path: `C:/Users/foo/myrepo` → `C-Users-foo-myrepo`.
+
+**Known limitation**: VS Code and Claude Code spawn the MCP server without setting the working directory to the workspace folder. The server's session detection (`getcwd()`) therefore resolves to the wrong path, and `auto_index` may not trigger correctly.
+
+**Workarounds**:
+1. **Pass the project name explicitly** in tool calls: `"project": "C-Users-cubecloud-io-github-pr-agent-meow"`
+2. **Use `repo_path` for indexing**: `index_repository({"repo_path": "C:/Users/cubecloud-io/github-pr/agent-meow"})` — this works regardless of CWD
+3. **Index from CLI first**: `codebase-memory-mcp cli index_repository '{"repo_path": "C:/path/to/repo"}'` — then the project is available for queries
+4. **Use `list_projects`** to discover available project names, then pass the correct one to query tools
+
+### Graph UI
+
+The 3D graph visualization runs at `http://localhost:9749` when the binary is started with `--ui=true`. On Windows, a scheduled task (`CodebaseMemoryMCP-UI`) auto-starts the UI server at login.
