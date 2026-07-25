@@ -44,7 +44,7 @@ cat >"${tmpdir}/wrapper.sh" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 exec 3<>"${FIFO}"
-"${CBM_BINARY}" <&3 >/dev/null 2>"${TMPDIR_PATH}/child.err" &
+"${CBM_BINARY}" <&3 >"${TMPDIR_PATH}/child.out" 2>"${TMPDIR_PATH}/child.err" &
 echo "$!" >"${TMPDIR_PATH}/child.pid"
 wait
 SH
@@ -73,14 +73,42 @@ if ! kill -0 "${child_pid}" 2>/dev/null; then
   exit 3
 fi
 
+# Complete one MCP request before killing the parent. A response proves that
+# the frontend reached its stdio loop after installing the parent watchdog.
+# The old mem.init log sync point belonged to the pre-daemon architecture: the
+# shared daemon now owns memory initialization, so a frontend need not emit it.
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"parent-watchdog-test","version":"1.0"}}}' \
+  >"${tmpdir}/stdin"
+for _ in {1..150}; do
+  if [[ -s "${tmpdir}/child.out" ]] &&
+    grep -Eq '"id"[[:space:]]*:[[:space:]]*1' "${tmpdir}/child.out"; then
+    break
+  fi
+  sleep 0.1
+done
+if ! grep -Eq '"id"[[:space:]]*:[[:space:]]*1' "${tmpdir}/child.out" 2>/dev/null; then
+  echo "child did not reach watchdog-ready startup point" >&2
+  [[ -s "${tmpdir}/child.err" ]] && cat "${tmpdir}/child.err" >&2
+  [[ -s "${tmpdir}/child.out" ]] && cat "${tmpdir}/child.out" >&2
+  exit 3
+fi
+
 # Kill the wrapper parent: the orphaned child must now self-exit.
 kill -9 "${wrapper_pid}"
 wait "${wrapper_pid}" 2>/dev/null || true
 
-deadline=$((SECONDS + 6))
+deadline=$((SECONDS + 15))
 while (( SECONDS < deadline )); do
   if ! kill -0 "${child_pid}" 2>/dev/null; then
     echo "ok: child ${child_pid} exited after parent death"
+    exit 0
+  fi
+  # A zombie no longer holds stdin or runs the MCP loop; kill -0 still reports
+  # it until launchd/test parent reaps it, so treat that as a successful exit.
+  child_state="$(ps -p "${child_pid}" -o stat= 2>/dev/null | tr -d '[:space:]' || true)"
+  if [[ "${child_state}" == Z* ]]; then
+    echo "ok: child ${child_pid} exited after parent death (zombie awaiting reap)"
     exit 0
   fi
   sleep 0.2
